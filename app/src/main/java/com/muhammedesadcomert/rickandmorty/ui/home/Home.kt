@@ -1,55 +1,44 @@
 package com.muhammedesadcomert.rickandmorty.ui.home
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarVisuals
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.AsyncImage
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.muhammedesadcomert.rickandmorty.R
 import com.muhammedesadcomert.rickandmorty.domain.model.Character
 import com.muhammedesadcomert.rickandmorty.domain.model.Location
@@ -62,77 +51,121 @@ fun Home(navigateToCharacterDetail: (String) -> Unit) {
     val viewModel: HomeViewModel = hiltViewModel()
     val snackBarHostState = remember { SnackbarHostState() }
 
+    val characterUiState by viewModel.characters.collectAsStateWithLifecycle()
+    val locationLazyPagingItems = viewModel.locations.collectAsLazyPagingItems()
+
+    val isRefreshing = characterUiState.isLoading
+    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing)
+
+    var searchText by rememberSaveable { mutableStateOf("") }
+
+    val filteredCharacters = remember(characterUiState.data, searchText) {
+        if (searchText.isBlank()) characterUiState.data
+        else characterUiState.data?.filter {
+            it.name.contains(searchText, ignoreCase = true)
+        } ?: emptyList()
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
                 title = {
-                    Text(text = stringResource(id = R.string.app_name))
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.headlineSmall
+                    )
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
             )
         },
         snackbarHost = {
             SnackbarHost(
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                modifier = Modifier.padding(16.dp),
                 hostState = snackBarHostState
             ) { data ->
                 Snackbar(
                     action = {
-                        TextButton(
-                            onClick = {
-                                viewModel.run {
-                                    getCharacters()
-                                }
-                            },
-                        ) {
+                        TextButton(onClick = { viewModel.getCharacters() }) {
                             Text(text = stringResource(R.string.retry))
                         }
                     }
                 ) {
-                    Text(
-                        modifier = Modifier.padding(4.dp),
-                        text = data.visuals.message
-                    )
+                    Text(text = data.visuals.message)
                 }
             }
         }
     ) { paddingValues ->
-        Column(
+
+        SwipeRefresh(
+            state = swipeRefreshState,
+            onRefresh = {
+                viewModel.getCharacters()
+                locationLazyPagingItems.refresh()
+            },
             modifier = Modifier
                 .fillMaxSize()
-                .padding(
-                    top = paddingValues.calculateTopPadding(),
-                    start = 16.dp,
-                    end = 16.dp
-                )
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
         ) {
-            val characterUiState by viewModel.characters.collectAsStateWithLifecycle()
-            val locationLazyPagingItems = viewModel.locations.collectAsLazyPagingItems()
+            Column(modifier = Modifier.fillMaxSize()) {
+                Spacer(modifier = Modifier.height(12.dp))
 
-            LocationRow(
-                modifier = Modifier,
-                locationLazyPagingItems = locationLazyPagingItems,
-                onButtonClick = {
-                    viewModel.getMultipleCharacters(it)
-                }
-            )
-
-            characterUiState.let { uiState ->
-                if (uiState.isLoading) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                    }
-                } else if (uiState.errorMessage != null) {
-                    snackBarHostState.ShowSnackBar(errorMessage = uiState.errorMessage)
-                } else if (uiState.data != null) {
-                    CharacterColumn(
-                        Modifier,
-                        uiState.data,
-                        onCardClick = { id ->
-                            navigateToCharacterDetail(id)
+                OutlinedTextField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    label = { Text(stringResource(id = R.string.search_characters)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchText.isNotBlank()) {
+                            IconButton(onClick = { searchText = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = stringResource(id = R.string.clear_search),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
+                    },
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
-                }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LocationRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    locationLazyPagingItems = locationLazyPagingItems,
+                    onButtonClick = { residentUrls ->
+                        viewModel.getMultipleCharacters(residentUrls)
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                CharacterListContent(
+                    characters = filteredCharacters,
+                    isLoading = characterUiState.isLoading,
+                    errorMessage = characterUiState.errorMessage,
+                    onRetry = { viewModel.getCharacters() },
+                    onCardClick = navigateToCharacterDetail,
+                    modifier = Modifier.weight(1f),
+                    favoriteIds = viewModel.favoriteIds.collectAsState().value,
+                    onFavoriteClick = { id -> viewModel.toggleFavorite(id) }
+                )
             }
         }
     }
@@ -149,26 +182,25 @@ fun LocationRow(
     LazyRow(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(
-            space = 8.dp,
-            alignment = Alignment.CenterHorizontally
-        )
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         itemsIndexed(
             items = locationLazyPagingItems.itemSnapshotList.items,
-            key = { _: Int, location: Location -> location.id },
-            contentType = { _: Int, location: Location -> location },
-            itemContent = { index: Int, location: Location ->
-                LocationButton(text = location.name, isSelected = selectedPosition == index) {
-                    selectedPosition = index
-                    onButtonClick(location.residents)
-                }
+            key = { _, location -> location.id },
+            contentType = { _, location -> location }
+        ) { index, location ->
+            LocationButton(
+                text = location.name,
+                isSelected = selectedPosition == index
+            ) {
+                selectedPosition = index
+                onButtonClick(location.residents)
             }
-        )
+        }
 
         if (locationLazyPagingItems.loadState.append is LoadState.Loading) {
             item {
-                CircularProgressIndicator()
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
             }
         }
     }
@@ -176,49 +208,114 @@ fun LocationRow(
 
 @Composable
 fun LocationButton(text: String, isSelected: Boolean, onButtonClick: () -> Unit) {
-    val (containerColor, contentColor) = if (isSelected) {
-        Pair(Yellow, Color.Black)
-    } else {
-        Pair(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onPrimary)
-    }
+    val containerColor = if (isSelected) Yellow else MaterialTheme.colorScheme.primaryContainer
+    val contentColor = if (isSelected) Color.Black else MaterialTheme.colorScheme.onPrimaryContainer
 
     Button(
-        modifier = Modifier,
+        onClick = onButtonClick,
+        shape = RoundedCornerShape(50),
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,
             contentColor = contentColor
         ),
-        onClick = onButtonClick
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        Text(text = text)
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
+
+//@Composable
+//fun CharacterListContent(
+//    characters: List<Character>?,
+//    isLoading: Boolean,
+//    errorMessage: String?,
+//    onRetry: () -> Unit,
+//    onCardClick: (String) -> Unit,
+//    modifier: Modifier = Modifier,
+//    favoriteIds: Set<String>,
+//    onFavoriteClick: (String) -> Unit
+//) {
+//    when {
+//        isLoading -> {
+//            Box(modifier = modifier.fillMaxSize()) {
+//                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+//            }
+//        }
+//
+//        errorMessage != null -> {
+//            Box(modifier = modifier.fillMaxSize()) {
+//                Column(
+//                    modifier = Modifier
+//                        .align(Alignment.Center)
+//                        .padding(16.dp),
+//                    horizontalAlignment = Alignment.CenterHorizontally
+//                ) {
+//                    Text(
+//                        text = errorMessage,
+//                        color = MaterialTheme.colorScheme.error,
+//                        style = MaterialTheme.typography.bodyLarge
+//                    )
+//                    Spacer(modifier = Modifier.height(8.dp))
+//                    Button(onClick = onRetry) {
+//                        Text(text = stringResource(R.string.retry))
+//                    }
+//                }
+//            }
+//        }
+//
+//        characters.isNullOrEmpty() -> {
+//            Box(modifier = modifier.fillMaxSize()) {
+//                Text(
+//                    text = stringResource(R.string.empty_state_message),
+//                    style = MaterialTheme.typography.bodyLarge,
+//                    modifier = Modifier.align(Alignment.Center)
+//                )
+//            }
+//        }
+//
+//        else -> {
+//            CharacterColumn(
+//                modifier = modifier,
+//                characters = characters,
+//                favoriteIds = favoriteIds,
+//                onCardClick = onCardClick,
+//                onFavoriteClick = onFavoriteClick
+//            )
+//        }
+//    }
+//}
 
 @Composable
 fun CharacterColumn(
     modifier: Modifier,
     characters: List<Character>,
-    onCardClick: (String) -> Unit
+    favoriteIds: Set<String>,
+    onCardClick: (String) -> Unit,
+    onFavoriteClick: (String) -> Unit
 ) {
-    LazyColumn(
+    LazyVerticalGrid(
         modifier = modifier
-            .padding(top = 8.dp, bottom = 8.dp)
+            .padding(vertical = 8.dp)
             .navigationBarsPadding(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(
-            space = 8.dp,
-            alignment = Alignment.CenterVertically
-        )
+        columns = GridCells.Fixed(1),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(bottom = 16.dp)
     ) {
-        items(characters) { character ->
+        items(characters, key = { it.id }) { character ->
             if (character.name.isNotEmpty() || character.image.isNotEmpty()) {
                 CharacterCard(
                     name = character.name,
                     imageUrl = character.image,
                     gender = character.gender.uppercase(),
-                    onClick = {
-                        onCardClick(character.id)
-                    },
+                    isFavorite = favoriteIds.contains(character.id),
+                    onClick = { onCardClick(character.id) },
+                    onFavoriteClick = { onFavoriteClick(character.id) }
                 )
             }
         }
@@ -226,55 +323,80 @@ fun CharacterColumn(
 }
 
 @Composable
-fun CharacterCard(name: String, imageUrl: String, gender: String, onClick: () -> Unit) {
+fun CharacterCard(
+    name: String,
+    imageUrl: String,
+    gender: String,
+    isFavorite: Boolean,
+    onClick: () -> Unit,
+    onFavoriteClick: () -> Unit
+) {
+    val borderColor = when (gender) {
+        CharacterGender.MALE.name -> Color(0xFF9CE5FF)
+        CharacterGender.FEMALE.name -> Color(0xFFFFB6C1)
+        CharacterGender.GENDERLESS.name -> Color(0xFFFFFF88)
+        CharacterGender.UNKNOWN.name -> Color.LightGray
+        else -> Color.LightGray
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .clickable {
-                onClick()
-            }
+            .height(80.dp)
+            .border(
+                width = 2.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        val backgroundColor: Color = when (gender) {
-            CharacterGender.MALE.name -> Color.Cyan
-            CharacterGender.FEMALE.name -> Color(0xFFFF7AA7)
-            CharacterGender.GENDERLESS.name -> Color.Yellow
-            CharacterGender.UNKNOWN.name -> Color.LightGray
-            else -> Color.LightGray
-        }
-
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .background(backgroundColor),
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             AsyncImage(
-                modifier = Modifier.size(100.dp),
                 model = imageUrl,
                 contentDescription = stringResource(R.string.character_image),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
             )
-            Text(text = name, color = Color.Black, fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
 
-@Composable
-fun SnackbarHostState.ShowSnackBar(errorMessage: String) {
-    LaunchedEffect(key1 = errorMessage) {
-        this@ShowSnackBar.showSnackbar(
-            object : SnackbarVisuals {
-                override val actionLabel: String
-                    get() = ""
-                override val duration: SnackbarDuration
-                    get() = SnackbarDuration.Indefinite
-                override val message: String
-                    get() = errorMessage
-                override val withDismissAction: Boolean
-                    get() = false
+            Text(
+                text = name,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = FontFamily(Font(R.font.rubik_regular))
+            )
+
+            IconButton(
+                onClick = onFavoriteClick,
+                modifier = Modifier.size(40.dp)
+            ) {
+                if (isFavorite) {
+                    Icon(
+                        imageVector = Icons.Filled.Favorite,
+                        contentDescription = stringResource(R.string.unmark_favorite),
+                        tint = Yellow
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.FavoriteBorder,
+                        contentDescription = stringResource(R.string.mark_favorite),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-        )
+        }
     }
 }

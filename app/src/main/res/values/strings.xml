@@ -5,6 +5,14 @@
     <string name="retry">Retry</string>
     <string name="return_to_previous_screen">Return to previous screen</string>
     <string name="splash_screen">Splash Screen</string>
-    <string name="welcome">Welcome!</string>
-    <string name="hello">Hello!</string>
+    <string name="welcome">Rick and Morty</string>
+    <string name="hello">Rick and Morty!</string>
+    <string name="empty_state_message">No se encontraron personajes.</string>
+    <string name="search_placeholder">Buscar personaje...</string>
+    <string name="search_characters">Buscar personajes...</string>
+    <string name="clear_search">Borrar búsqueda</string>
+    <string name="unmark_favorite">Desmarcar favorito</string>
+    <string name="mark_favorite">Marcar favorito</string>
+    <string name="error_loading_data">Ocurrió un error al cargar los datos</string>
+
 </resources>

@@ -10,6 +10,7 @@ import com.muhammedesadcomert.rickandmorty.util.NetworkResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -25,6 +26,16 @@ class HomeViewModel @Inject constructor(private val repository: RickAndMortyRepo
 
     init {
         getCharacters()
+    }
+
+    private val _favoriteIds = MutableStateFlow<Set<String>>(emptySet())
+    val favoriteIds: StateFlow<Set<String>> = _favoriteIds.asStateFlow()
+
+    fun toggleFavorite(characterId: String) {
+        val current = _favoriteIds.value.toMutableSet()
+        if (current.contains(characterId)) current.remove(characterId)
+        else current.add(characterId)
+        _favoriteIds.value = current
     }
 
     fun getCharacters() {
