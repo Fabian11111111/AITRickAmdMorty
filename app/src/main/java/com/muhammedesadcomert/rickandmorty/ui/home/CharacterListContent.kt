@@ -17,8 +17,8 @@ fun CharacterListContent(
     errorMessage: String?,
     onRetry: () -> Unit,
     onCardClick: (String) -> Unit,
-    favoriteIds: Set<String>,                       // NUEVO
-    onFavoriteClick: (String) -> Unit,              // NUEVO
+    favoriteIds: Set<String>,
+    onFavoriteClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     when {
